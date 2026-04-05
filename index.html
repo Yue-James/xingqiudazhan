@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>四星球资源博弈</title>
+<style>
+/* ===== CSS Variables & Reset ===== */
+:root {
+  --bg-deep: #03060f;
+  --bg-card: #080d1a;
+  --bg-card2: #0c1423;
+  --bg-panel: #0a1020;
+  --border: #1a2a4a;
+  --border-glow: #1e3a6a;
+  --text-primary: #d4e8ff;
+  --text-secondary: #6a9fd8;
+  --text-muted: #3a5a8a;
+  --accent-cyan: #00d4ff;
+  --accent-blue: #4a9eff;
+  --accent-gold: #ffd700;
+  --accent-red: #ff4a6a;
+  --accent-green: #00e896;
+  --accent-orange: #ff8c42;
+  --accent-purple: #c47aff;
+  --food-color: #7dff6b;
+  --water-color: #4af0ff;
+  --energy-color: #ffd84a;
+  --metal-color: #c0c0d8;
+  --planet-food: #2d5a1a;
+  --planet-water: #1a3a5a;
+  --planet-energy: #5a3a00;
+  --planet-metal: #2a2a3a;
+  --shadow-glow: 0 0 20px rgba(0,212,255,0.15);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.6);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font-main: 'Courier New', 'Consolas', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Starfield background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 10%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 55%, rgba(200,230,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 45%, rgba(200,230,255,0.4) 0%, transparent 100%),
+    radial-gradient(2px 2px at 25% 30%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 75% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 75%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 50%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 5% 90%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 38% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 35%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 67% 65%, rgba(255,255,255,0.6) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== Layout ===== */
+#app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 12px; }
+
+/* ===== Header ===== */
+#header {
+  text-align: center;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+#header h1 {
+  font-size: 28px;
+  letter-spacing: 6px;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 20px rgba(0,212,255,0.5), 0 0 40px rgba(0,212,255,0.2);
+  margin-bottom: 4px;
+}
+#header .subtitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 3px;
+}
+
+/* ===== Top Controls ===== */
+#top-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.info-badge {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.info-badge span { color: var(--accent-cyan); font-weight: bold; }
+.spacer { flex: 1; }
+
+/* ===== Buttons ===== */
+.btn {
+  border: none; cursor: pointer; font-family: var(--font-main);
+  font-size: 12px; border-radius: var(--radius-sm); padding: 7px 14px;
+  transition: all 0.2s; letter-spacing: 1px; font-weight: bold;
+}
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: linear-gradient(135deg, #0a4a8a, #0a6aaa); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #0a6aaa, #0a8aca); box-shadow: 0 0 12px rgba(0,212,255,0.3); }
+.btn-danger { background: linear-gradient(135deg, #5a0a1a, #8a0a2a); color: var(--accent-red); border: 1px solid var(--accent-red); }
+.btn-danger:hover:not(:disabled) { box-shadow: 0 0 12px rgba(255,74,106,0.3); }
+.btn-success { background: linear-gradient(135deg, #0a3a1a, #0a5a2a); color: var(--accent-green); border: 1px solid var(--accent-green); }
+.btn-success:hover:not(:disabled) { box-shadow: 0 0 12px rgba(0,232,150,0.3); }
+.btn-gold { background: linear-gradient(135deg, #3a2a00, #5a4a00); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+.btn-gold:hover:not(:disabled) { box-shadow: 0 0 12px rgba(255,215,0,0.3); }
+.btn-secondary { background: var(--bg-panel); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--text-secondary); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+
+/* ===== Main Grid ===== */
+#main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+/* ===== Planet Cards ===== */
+.planet-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.planet-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--planet-accent), transparent);
+}
+.planet-card.active-turn {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 20px rgba(0,212,255,0.2), inset 0 0 20px rgba(0,212,255,0.03);
+}
+.planet-card[data-planet="food"] { --planet-accent: var(--food-color); }
+.planet-card[data-planet="water"] { --planet-accent: var(--water-color); }
+.planet-card[data-planet="energy"] { --planet-accent: var(--energy-color); }
+.planet-card[data-planet="metal"] { --planet-accent: var(--metal-color); }
+.planet-card[data-planet="food"]::before { background: linear-gradient(90deg, transparent, var(--food-color), transparent); }
+.planet-card[data-planet="water"]::before { background: linear-gradient(90deg, transparent, var(--water-color), transparent); }
+.planet-card[data-planet="energy"]::before { background: linear-gradient(90deg, transparent, var(--energy-color), transparent); }
+.planet-card[data-planet="metal"]::before { background: linear-gradient(90deg, transparent, var(--metal-color), transparent); }
+
+.planet-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.planet-name { font-size: 15px; font-weight: bold; letter-spacing: 2px; }
+.planet-name[data-planet="food"] { color: var(--food-color); text-shadow: 0 0 8px rgba(125,255,107,0.5); }
+.planet-name[data-planet="water"] { color: var(--water-color); text-shadow: 0 0 8px rgba(74,240,255,0.5); }
+.planet-name[data-planet="energy"] { color: var(--energy-color); text-shadow: 0 0 8px rgba(255,216,74,0.5); }
+.planet-name[data-planet="metal"] { color: var(--metal-color); text-shadow: 0 0 8px rgba(192,192,216,0.5); }
+
+.planet-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px;
+  letter-spacing: 1px; font-weight: bold;
+}
+.badge-low { background: rgba(255,74,106,0.2); color: var(--accent-red); border: 1px solid rgba(255,74,106,0.3); }
+.badge-action { background: rgba(0,212,255,0.15); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.3); }
+.badge-eliminated { background: rgba(100,100,100,0.2); color: #666; border: 1px solid #333; }
+
+.planet-pop {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px; font-size: 12px;
+  color: var(--text-secondary);
+}
+.pop-icon { font-size: 14px; }
+.pop-val { font-size: 16px; font-weight: bold; color: var(--text-primary); }
+
+.resource-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+}
+.resource-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
+  display: flex; align-items: center; gap: 5px;
+}
+.resource-icon { font-size: 12px; }
+.resource-label { color: var(--text-muted); font-size: 10px; }
+.resource-val { margin-left: auto; font-weight: bold; font-size: 13px; }
+.res-food .resource-val { color: var(--food-color); }
+.res-water .resource-val { color: var(--water-color); }
+.res-energy .resource-val { color: var(--energy-color); }
+.res-metal .resource-val { color: var(--metal-color); }
+
+.action-dots {
+  display: flex; gap: 4px; margin-top: 8px; justify-content: center;
+}
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-panel);
+  transition: background 0.2s;
+}
+.dot.filled { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(0,212,255,0.5); }
+
+.turn-indicator {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 9px; color: var(--accent-cyan);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+/* ===== Bottom Grid ===== */
+#bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ===== Action Panel ===== */
+#action-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+#action-panel h3 { color: var(--accent-cyan); font-size: 13px; letter-spacing: 2px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+
+.panel-section { margin-bottom: 12px; }
+.panel-section h4 { color: var(--text-secondary); font-size: 11px; letter-spacing: 1px; margin-bottom: 8px; }
+
+.form-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.form-label { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+select, input[type="number"] {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+select:focus, input:focus { border-color: var(--accent-cyan); }
+input[type="number"] { width: 60px; }
+
+.trade-type-btns { display: flex; gap: 6px; }
+.trade-type-btn {
+  padding: 4px 10px; font-size: 11px; border-radius: var(--radius-sm);
+  cursor: pointer; border: 1px solid var(--border); background: var(--bg-panel);
+  color: var(--text-secondary); font-family: var(--font-main); transition: all 0.2s;
+}
+.trade-type-btn.active { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(255,215,0,0.1); }
+
+/* ===== Log Panel ===== */
+#log-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex; flex-direction: column;
+}
+#log-panel h3 { color: var(--accent-cyan); font-size: 13px; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-shrink: 0; }
+#log-list {
+  flex: 1; overflow-y: auto; max-height: 320px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.log-entry {
+  font-size: 11px; padding: 4px 8px;
+  border-left: 2px solid var(--border);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.log-entry.log-system { border-color: var(--accent-cyan); color: var(--text-secondary); }
+.log-entry.log-trade { border-color: var(--accent-gold); color: #b8960a; }
+.log-entry.log-raid { border-color: var(--accent-red); color: #a03a50; }
+.log-entry.log-settle { border-color: var(--accent-blue); color: #3a6a9a; }
+.log-entry.log-bonus { border-color: var(--accent-purple); color: #8a4ab8; }
+.log-entry.log-dice { border-color: var(--accent-orange); color: #a05a20; }
+.log-time { color: var(--text-muted); margin-right: 4px; font-size: 10px; }
+
+/* ===== Modal / Overlay ===== */
+#overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,5,0.88);
+  z-index: 100; align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+#overlay.show { display: flex; }
+
+.modal {
+  background: var(--bg-card2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  max-width: 480px; width: 90%;
+  box-shadow: 0 0 40px rgba(0,212,255,0.1), var(--shadow-card);
+  position: relative;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal h2 { color: var(--accent-cyan); font-size: 15px; letter-spacing: 3px; margin-bottom: 16px; text-align: center; }
+.modal-body { color: var(--text-secondary); font-size: 12px; line-height: 1.8; margin-bottom: 16px; }
+.modal-body .highlight { color: var(--accent-cyan); font-weight: bold; }
+.modal-body .resource-tag {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-weight: bold; font-size: 11px;
+}
+.rt-food { color: var(--food-color); border: 1px solid rgba(125,255,107,0.3); }
+.rt-water { color: var(--water-color); border: 1px solid rgba(74,240,255,0.3); }
+.rt-energy { color: var(--energy-color); border: 1px solid rgba(255,216,74,0.3); }
+.rt-metal { color: var(--metal-color); border: 1px solid rgba(192,192,216,0.3); }
+.rt-hidden { color: var(--text-muted); border: 1px solid var(--border); letter-spacing: 2px; }
+
+.modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ===== Dice Roll UI ===== */
+.dice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.dice-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  text-align: center;
+}
+.dice-planet { color: var(--text-secondary); font-size: 11px; margin-bottom: 4px; }
+.dice-val {
+  font-size: 28px; font-weight: bold; color: var(--accent-gold);
+  text-shadow: 0 0 10px rgba(255,215,0,0.4);
+}
+.dice-order { font-size: 11px; color: var(--accent-cyan); margin-top: 2px; }
+
+/* ===== Rules Panel ===== */
+#rules-toggle-btn {
+  width: 100%; text-align: left; padding: 10px 14px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  color: var(--text-secondary); font-family: var(--font-main);
+  font-size: 12px; letter-spacing: 1px; margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+#rules-toggle-btn:hover { border-color: var(--text-secondary); }
+#rules-panel {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.8;
+}
+#rules-panel h4 { color: var(--accent-cyan); margin: 10px 0 4px; font-size: 12px; }
+#rules-panel ul { padding-left: 14px; }
+#rules-panel li { margin-bottom: 2px; }
+
+/* ===== Status Message ===== */
+#status-msg {
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px; color: var(--accent-cyan);
+  text-align: center;
+  margin-bottom: 10px;
+  min-height: 32px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ===== Five-round bonus modal ===== */
+.bonus-list { display: flex; flex-direction: column; gap: 8px; }
+.bonus-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.bonus-item .planet-lbl { font-weight: bold; }
+
+/* ===== Eliminated overlay ===== */
+.eliminated-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.7);
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #555; letter-spacing: 2px;
+  z-index: 2;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  #main-grid { grid-template-columns: 1fr 1fr; }
+  #bottom-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 550px) {
+  #main-grid { grid-template-columns: 1fr; }
+  #header h1 { font-size: 20px; letter-spacing: 3px; }
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
+
+/* ===== Winner banner ===== */
+#winner-banner {
+  display: none;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(0,212,255,0.1));
+  border: 2px solid var(--accent-gold);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 30px rgba(255,215,0,0.2);
+}
+#winner-banner h2 { color: var(--accent-gold); font-size: 20px; letter-spacing: 4px; }
+#winner-banner p { color: var(--text-secondary); margin-top: 6px; }
+
+/* current turn highlight glow */
+.planet-card.active-turn .planet-name::after {
+  content: ' ◀';
+  color: var(--accent-cyan);
+  font-size: 10px;
+  animation: pulse 1s infinite;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Header -->
+<div id="header">
+  <h1>★ 四星球资源博弈 ★</h1>
+  <div class="subtitle">FOUR PLANETS RESOURCE STRATEGY</div>
+</div>
+
+<!-- Rules Toggle -->
+<button id="rules-toggle-btn" onclick="toggleRules()">📖 规则说明（点击展开/收起）</button>
+<div id="rules-panel">
+  <h4>🎲 开局掷骰</h4>
+  <ul>
+    <li>四个星球各掷一次六面骰（1~6），点数大者先行动</li>
+    <li>平局自动重掷，直到顺序唯一</li>
+  </ul>
+  <h4>🔄 每轮行动</h4>
+  <ul>
+    <li>每个星球有 <b>2点行动值</b>，可发起交易或掠夺，各耗1点</li>
+    <li>按顺序操作，点"结束回合"轮到下一位</li>
+    <li>四位都结束后进行回合结算</li>
+  </ul>
+  <h4>💹 交易规则</h4>
+  <ul>
+    <li>发起方耗1点行动值，设定给出资源和请求资源</li>
+    <li><b>明牌：</b>被交易方能看到资源名称和数量</li>
+    <li><b>暗牌：</b>资源名称隐藏，只显示数量</li>
+    <li>被交易方可同意或拒绝；失败公示"交易失败"，成功只公示"有一笔交易已完成"（不暴露双方信息）</li>
+  </ul>
+  <h4>⚔️ 掠夺规则</h4>
+  <ul>
+    <li>发起方耗1点行动值，选择目标星球和资源类型</li>
+    <li>目标可选 <b>防守</b>（不耗行动值）→ 掠夺失败，攻击方人口-1</li>
+    <li>目标不防守 → 掠夺成功，夺走1个目标资源；若目标没有该资源则失败</li>
+    <li>掠夺成功后额外掷骰：1=再抢1个随机资源，6=目标再失去1人口，2~5=无效果</li>
+  </ul>
+  <h4>🌙 回合结算</h4>
+  <ul>
+    <li>每回合起始：各星球产出盛产资源 + 1个随机非盛产资源</li>
+    <li>每回合结束：每个星球需消耗 1 food + 1 water 维持人口；不足则人口-1</li>
+    <li>人口低于2时进入<b>低耗模式</b>：每两轮才消耗一次</li>
+    <li>人口归零则被淘汰</li>
+  </ul>
+  <h4>🏆 每5轮奖励</h4>
+  <ul>
+    <li>Food ≥ 6 → 人口+1</li>
+    <li>Water ≥ 5 → 选择获得 +1 food 或 +1 energy</li>
+  </ul>
+</div>
+
+<!-- Winner Banner -->
+<div id="winner-banner">
+  <h2>🏆 游戏结束！</h2>
+  <p id="winner-text"></p>
+</div>
+
+<!-- Status Message -->
+<div id="status-msg">请先点击「开局掷骰」决定行动顺序</div>
+
+<!-- Top Controls -->
+<div id="top-controls">
+  <div class="info-badge">轮次 <span id="round-display">—</span></div>
+  <div class="info-badge">当前行动 <span id="current-player-display">—</span></div>
+  <div class="info-badge">顺序 <span id="order-display">—</span></div>
+  <div class="spacer"></div>
+  <button class="btn btn-gold" id="btn-roll" onclick="startRollSequence()">🎲 开局掷骰</button>
+  <button class="btn btn-primary" id="btn-start-round" onclick="startNewRound()" disabled>▶ 开始新一轮</button>
+  <button class="btn btn-secondary" onclick="confirmReset()">↺ 重置游戏</button>
+</div>
+
+<!-- Planet Cards -->
+<div id="main-grid">
+  <div class="planet-card" id="card-food" data-planet="food">
+    <div class="planet-header">
+      <div class="planet-name" data-planet="food">🌿 FOOD</div>
+      <div class="planet-badges" id="badges-food"></div>
+    </div>
+    <div class="planet-pop">
+      <span class="pop-icon">👥</span>
+      <span>人口</span>
+      <span class="pop-val" id="pop-food">10</span>
+    </div>
+    <div class="resource-grid">
+      <div class="resource-item res-food"><span class="resource-icon">🌾</span><span class="resource-label">FOOD</span><span class="resource-val" id="res-food-food">6</span></div>
+      <div class="resource-item res-water"><span class="resource-icon">💧</span><span class="resource-label">WATER</span><span class="resource-val" id="res-food-water">4</span></div>
+      <div class="resource-item res-energy"><span class="resource-icon">⚡</span><span class="resource-label">ENERGY</span><span class="resource-val" id="res-food-energy">3</span></div>
+      <div class="resource-item res-metal"><span class="resource-icon">🔩</span><span class="resource-label">METAL</span><span class="resource-val" id="res-food-metal">2</span></div>
+    </div>
+    <div class="action-dots" id="dots-food">
+      <div class="dot filled"></div><div class="dot filled"></div>
+    </div>
+    <div class="turn-indicator" id="turn-food" style="display:none">▶ YOUR TURN</div>
+  </div>
+
+  <div class="planet-card" id="card-water" data-planet="water">
+    <div class="planet-header">
+      <div class="planet-name" data-planet="water">💧 WATER</div>
+      <div class="planet-badges" id="badges-water"></div>
+    </div>
+    <div class="planet-pop">
+      <span class="pop-icon">👥</span>
+      <span>人口</span>
+      <span class="pop-val" id="pop-water">10</span>
+    </div>
+    <div class="resource-grid">
+      <div class="resource-item res-food"><span class="resource-icon">🌾</span><span class="resource-label">FOOD</span><span class="resource-val" id="res-water-food">4</span></div>
+      <div class="resource-item res-water"><span class="resource-icon">💧</span><span class="resource-label">WATER</span><span class="resource-val" id="res-water-water">6</span></div>
+      <div class="resource-item res-energy"><span class="resource-icon">⚡</span><span class="resource-label">ENERGY</span><span class="resource-val" id="res-water-energy">3</span></div>
+      <div class="resource-item res-metal"><span class="resource-icon">🔩</span><span class="resource-label">METAL</span><span class="resource-val" id="res-water-metal">2</span></div>
+    </div>
+    <div class="action-dots" id="dots-water">
+      <div class="dot filled"></div><div class="dot filled"></div>
+    </div>
+    <div class="turn-indicator" id="turn-water" style="display:none">▶ YOUR TURN</div>
+  </div>
+
+  <div class="planet-card" id="card-energy" data-planet="energy">
+    <div class="planet-header">
+      <div class="planet-name" data-planet="energy">⚡ ENERGY</div>
+      <div class="planet-badges" id="badges-energy"></div>
+    </div>
+    <div class="planet-pop">
+      <span class="pop-icon">👥</span>
+      <span>人口</span>
+      <span class="pop-val" id="pop-energy">10</span>
+    </div>
+    <div class="resource-grid">
+      <div class="resource-item res-food"><span class="resource-icon">🌾</span><span class="resource-label">FOOD</span><span class="resource-val" id="res-energy-food">5</span></div>
+      <div class="resource-item res-water"><span class="resource-icon">💧</span><span class="resource-label">WATER</span><span class="resource-val" id="res-energy-water">4</span></div>
+      <div class="resource-item res-energy"><span class="resource-icon">⚡</span><span class="resource-label">ENERGY</span><span class="resource-val" id="res-energy-energy">5</span></div>
+      <div class="resource-item res-metal"><span class="resource-icon">🔩</span><span class="resource-label">METAL</span><span class="resource-val" id="res-energy-metal">2</span></div>
+    </div>
+    <div class="action-dots" id="dots-energy">
+      <div class="dot filled"></div><div class="dot filled"></div>
+    </div>
+    <div class="turn-indicator" id="turn-energy" style="display:none">▶ YOUR TURN</div>
+  </div>
+
+  <div class="planet-card" id="card-metal" data-planet="metal">
+    <div class="planet-header">
+      <div class="planet-name" data-planet="metal">🔩 METAL</div>
+      <div class="planet-badges" id="badges-metal"></div>
+    </div>
+    <div class="planet-pop">
+      <span class="pop-icon">👥</span>
+      <span>人口</span>
+      <span class="pop-val" id="pop-metal">10</span>
+    </div>
+    <div class="resource-grid">
+      <div class="resource-item res-food"><span class="resource-icon">🌾</span><span class="resource-label">FOOD</span><span class="resource-val" id="res-metal-food">4</span></div>
+      <div class="resource-item res-water"><span class="resource-icon">💧</span><span class="resource-label">WATER</span><span class="resource-val" id="res-metal-water">3</span></div>
+      <div class="resource-item res-energy"><span class="resource-icon">⚡</span><span class="resource-label">ENERGY</span><span class="resource-val" id="res-metal-energy">2</span></div>
+      <div class="resource-item res-metal"><span class="resource-icon">🔩</span><span class="resource-label">METAL</span><span class="resource-val" id="res-metal-metal">3</span></div>
+    </div>
+    <div class="action-dots" id="dots-metal">
+      <div class="dot filled"></div><div class="dot filled"></div>
+    </div>
+    <div class="turn-indicator" id="turn-metal" style="display:none">▶ YOUR TURN</div>
+  </div>
+</div>
+
+<!-- Bottom Grid: Action Panel + Log -->
+<div id="bottom-grid">
+  <!-- Action Panel -->
+  <div id="action-panel">
+    <h3>⚙ 操作面板</h3>
+    <div id="action-content">
+      <div style="color:var(--text-muted); text-align:center; padding:20px 0; font-size:12px;">
+        等待开局掷骰或玩家回合开始…
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div id="log-panel">
+    <h3>📡 游戏日志</h3>
+    <div id="log-list"></div>
+  </div>
+</div>
+
+</div><!-- end #app -->
+
+<!-- Overlay / Modal -->
+<div id="overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+/* =========================================================
+   GAME STATE
+   ========================================================= */
+const PLANETS = ['food','water','energy','metal'];
+const PLANET_LABELS = { food:'🌿 FOOD星', water:'💧 WATER星', energy:'⚡ ENERGY星', metal:'🔩 METAL星' };
+const PLANET_PRODUCE = { food:'food', water:'water', energy:'energy', metal:'metal' };
+const PLANET_PRODUCE_AMT = { food:2, water:2, energy:3, metal:2 };
+const RES_ICONS = { food:'🌾', water:'💧', energy:'⚡', metal:'🔩' };
+const RES_COLORS = { food:'var(--food-color)', water:'var(--water-color)', energy:'var(--energy-color)', metal:'var(--metal-color)' };
+
+function initState() {
+  return {
+    phase: 'pregame', // pregame | rolling | acting | settling | gameover
+    round: 0,
+    turnOrder: [], // array of planet keys, sorted by roll
+    currentTurnIndex: 0, // index in turnOrder
+    rolledThisGame: false,
+    planets: {
+      food:   { population:10, food:6, water:4, energy:3, metal:2, actionPoints:2, lowConsumeTurns:0 },
+      water:  { population:10, food:4, water:6, energy:3, metal:2, actionPoints:2, lowConsumeTurns:0 },
+      energy: { population:10, food:5, water:4, energy:5, metal:2, actionPoints:2, lowConsumeTurns:0 },
+      metal:  { population:10, food:4, water:3, energy:2, metal:3, actionPoints:2, lowConsumeTurns:0 },
+    },
+    eliminated: { food:false, water:false, energy:false, metal:false },
+    pendingTrade: null,
+    pendingRaid: null,
+    pendingBonus: [], // list of {planet, type} for 5-round bonus
+    bonusIndex: 0,
+  };
+}
+
+let gs = initState();
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function roll6() { return Math.floor(Math.random()*6)+1; }
+
+function randomFrom(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+function getActivePlanets() {
+  return PLANETS.filter(p => !gs.eliminated[p]);
+}
+
+function currentPlanet() {
+  return gs.turnOrder[gs.currentTurnIndex] || null;
+}
+
+function resTag(res, hide) {
+  if (hide) return `<span class="resource-tag rt-hidden">???</span>`;
+  return `<span class="resource-tag rt-${res}">${RES_ICONS[res]} ${res.toUpperCase()}</span>`;
+}
+
+function planetLabel(p) { return PLANET_LABELS[p]; }
+
+/* =========================================================
+   LOG
+   ========================================================= */
+function addLog(text, type='system') {
+  const el = document.createElement('div');
+  el.className = `log-entry log-${type}`;
+  const now = `R${gs.round}`;
+  el.innerHTML = `<span class="log-time">[${now}]</span>${text}`;
+  const list = document.getElementById('log-list');
+  list.insertBefore(el, list.firstChild);
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render() {
+  PLANETS.forEach(p => {
+    const pl = gs.planets[p];
+    document.getElementById(`pop-${p}`).textContent = pl.population;
+    ['food','water','energy','metal'].forEach(r => {
+      document.getElementById(`res-${p}-${r}`).textContent = pl[r];
+    });
+    // action dots
+    const dots = document.getElementById(`dots-${p}`);
+    dots.innerHTML = '';
+    for (let i=0; i<2; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < pl.actionPoints ? ' filled' : '');
+      dots.appendChild(d);
+    }
+    // badges
+    const badges = document.getElementById(`badges-${p}`);
+    badges.innerHTML = '';
+    if (gs.eliminated[p]) {
+      badges.innerHTML = '<span class="badge badge-eliminated">ELIMINATED</span>';
+    } else {
+      if (pl.population < 2) badges.innerHTML += '<span class="badge badge-low">LOW</span>';
+    }
+    // turn indicator
+    const ti = document.getElementById(`turn-${p}`);
+    const card = document.getElementById(`card-${p}`);
+    if (gs.phase==='acting' && currentPlanet()===p && !gs.eliminated[p]) {
+      ti.style.display='block';
+      card.classList.add('active-turn');
+    } else {
+      ti.style.display='none';
+      card.classList.remove('active-turn');
+    }
+    // eliminated overlay
+    let existingOverlay = card.querySelector('.eliminated-overlay');
+    if (gs.eliminated[p] && !existingOverlay) {
+      const ov = document.createElement('div');
+      ov.className = 'eliminated-overlay';
+      ov.textContent = '— ELIMINATED —';
+      card.appendChild(ov);
+    } else if (!gs.eliminated[p] && existingOverlay) {
+      existingOverlay.remove();
+    }
+  });
+
+  // top bar
+  document.getElementById('round-display').textContent = gs.round || '—';
+  const cp = currentPlanet();
+  document.getElementById('current-player-display').textContent = cp ? planetLabel(cp) : '—';
+  const orderStr = gs.turnOrder.map((p,i)=>`${i+1}.${PLANET_LABELS[p].replace(/[^\w\s★]/g,'').trim().split(' ')[0]}`).join(' ');
+  document.getElementById('order-display').textContent = orderStr || '—';
+
+  // action panel
+  renderActionPanel();
+
+  // winner check
+  checkWinner();
+}
+
+function renderActionPanel() {
+  const panel = document.getElementById('action-content');
+  if (gs.phase !== 'acting') {
+    panel.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:20px 0;font-size:12px;">${
+      gs.phase==='pregame'?'等待开局掷骰…':
+      gs.phase==='settling'?'回合结算中…':
+      gs.phase==='gameover'?'游戏已结束':
+      '请等待回合开始'
+    }</div>`;
+    return;
+  }
+  const cp = currentPlanet();
+  if (!cp || gs.eliminated[cp]) {
+    panel.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:20px 0;font-size:12px;">请等待…</div>`;
+    return;
+  }
+  const pl = gs.planets[cp];
+  const ap = pl.actionPoints;
+
+  const otherActives = gs.turnOrder.filter(p=>p!==cp && !gs.eliminated[p]);
+
+  panel.innerHTML = `
+    <div style="margin-bottom:10px;color:var(--text-secondary);font-size:12px;">
+      当前玩家：<b style="color:${RES_COLORS[cp]}">${planetLabel(cp)}</b> &nbsp;|&nbsp; 剩余行动值：<b style="color:var(--accent-cyan)">${ap}</b>
+    </div>
+
+    <div class="panel-section">
+      <h4>💹 发起交易</h4>
+      <div class="form-row">
+        <span class="form-label">目标：</span>
+        <select id="trade-target">
+          ${otherActives.map(p=>`<option value="${p}">${planetLabel(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <span class="form-label">给出：</span>
+        <select id="trade-give-res">
+          ${['food','water','energy','metal'].map(r=>`<option value="${r}">${RES_ICONS[r]} ${r.toUpperCase()}(${pl[r]})</option>`).join('')}
+        </select>
+        <input type="number" id="trade-give-amt" value="1" min="1" max="99">
+      </div>
+      <div class="form-row">
+        <span class="form-label">换取：</span>
+        <select id="trade-want-res">
+          ${['food','water','energy','metal'].map(r=>`<option value="${r}">${RES_ICONS[r]} ${r.toUpperCase()}</option>`).join('')}
+        </select>
+        <input type="number" id="trade-want-amt" value="1" min="1" max="99">
+      </div>
+      <div class="form-row">
+        <span class="form-label">模式：</span>
+        <div class="trade-type-btns">
+          <button class="trade-type-btn active" id="tbtn-open" onclick="setTradeType('open')">明牌</button>
+          <button class="trade-type-btn" id="tbtn-hidden" onclick="setTradeType('hidden')">暗牌</button>
+        </div>
+      </div>
+      <button class="btn btn-gold btn-sm" onclick="initiateTrade()" ${ap<1?'disabled':''}>发起交易（耗1行动值）</button>
+    </div>
+
+    <div class="panel-section">
+      <h4>⚔️ 发起掠夺</h4>
+      <div class="form-row">
+        <span class="form-label">目标：</span>
+        <select id="raid-target">
+          ${otherActives.map(p=>`<option value="${p}">${planetLabel(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <span class="form-label">资源：</span>
+        <select id="raid-res">
+          ${['food','water','energy','metal'].map(r=>`<option value="${r}">${RES_ICONS[r]} ${r.toUpperCase()}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="initiateRaid()" ${ap<1?'disabled':''}>发起掠夺（耗1行动值）</button>
+    </div>
+
+    <hr style="border-color:var(--border);margin:10px 0;">
+    <button class="btn btn-primary" onclick="endPlayerTurn()">结束 ${planetLabel(cp)} 的回合 →</button>
+  `;
+
+  // restore trade type selection
+  if (window._tradeType === 'hidden') {
+    setTimeout(()=>setTradeType('hidden'),0);
+  }
+}
+
+window._tradeType = 'open';
+function setTradeType(t) {
+  window._tradeType = t;
+  document.getElementById('tbtn-open').classList.toggle('active', t==='open');
+  document.getElementById('tbtn-hidden').classList.toggle('active', t==='hidden');
+}
+
+/* =========================================================
+   DICE ROLL SEQUENCE (opening)
+   ========================================================= */
+function startRollSequence() {
+  if (gs.rolledThisGame) { setStatus('已经掷过骰了！请开始新一轮。'); return; }
+  document.getElementById('btn-roll').disabled = true;
+
+  // Roll for each planet, handle ties
+  let rolls = {};
+  PLANETS.forEach(p => rolls[p] = roll6());
+  addLog(`开局掷骰：${PLANETS.map(p=>`${planetLabel(p)}=${rolls[p]}`).join('，')}`, 'dice');
+
+  // Handle ties iteratively
+  let order = sortWithTiebreak(rolls);
+
+  // Show result in modal
+  showDiceModal(rolls, order);
+  gs.turnOrder = order;
+  gs.rolledThisGame = true;
+  document.getElementById('btn-start-round').disabled = false;
+  gs.phase = 'ready';
+  render();
+  setStatus('掷骰完成！点击「开始新一轮」开始第一轮。');
+}
+
+function sortWithTiebreak(rolls) {
+  // sort descending
+  let entries = PLANETS.map(p=>({p, v:rolls[p]}));
+  let resolved = [];
+  let remaining = [...entries];
+
+  while (remaining.length > 0) {
+    let maxVal = Math.max(...remaining.map(e=>e.v));
+    let tied = remaining.filter(e=>e.v===maxVal);
+    if (tied.length === 1) {
+      resolved.push(tied[0].p);
+      remaining = remaining.filter(e=>e.v!==maxVal);
+    } else {
+      // reroll tied
+      let newRolls = {};
+      tied.forEach(e=>{ newRolls[e.p]=roll6(); });
+      addLog(`平局重掷（${tied.map(e=>planetLabel(e.p)).join('，')}）：${tied.map(e=>`${planetLabel(e.p)}=${newRolls[e.p]}`).join('，')}`, 'dice');
+      // replace rolls for tied
+      tied.forEach(e=>{ e.v = newRolls[e.p]; });
+      // check again next iteration
+    }
+  }
+  return resolved;
+}
+
+function showDiceModal(rolls, order) {
+  const content = `
+    <h2>🎲 开局掷骰结果</h2>
+    <div class="dice-grid">
+      ${PLANETS.map(p=>`
+        <div class="dice-item">
+          <div class="dice-planet">${planetLabel(p)}</div>
+          <div class="dice-val">${rolls[p]}</div>
+          <div class="dice-order">行动顺序：第 ${order.indexOf(p)+1} 位</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin:12px 0;color:var(--text-secondary);font-size:12px;text-align:center;">
+      行动顺序：${order.map((p,i)=>`<b style="color:${RES_COLORS[p]}">${i+1}.${planetLabel(p)}</b>`).join(' → ')}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal()">确认</button>
+    </div>
+  `;
+  showModal(content);
+}
+
+/* =========================================================
+   ROUND START
+   ========================================================= */
+function startNewRound() {
+  if (gs.phase === 'pregame') { setStatus('请先掷骰！'); return; }
+  gs.round++;
+  gs.currentTurnIndex = 0;
+  gs.phase = 'acting';
+
+  // Skip eliminated planets at start of turn order
+  skipEliminated();
+
+  // Resource production
+  produceResources();
+
+  // Reset action points
+  PLANETS.forEach(p => {
+    if (!gs.eliminated[p]) gs.planets[p].actionPoints = 2;
+  });
+
+  document.getElementById('btn-start-round').disabled = true;
+  render();
+  setStatus(`第 ${gs.round} 轮开始！当前行动：${planetLabel(currentPlanet())}`);
+}
+
+function produceResources() {
+  let logParts = [];
+  PLANETS.forEach(p => {
+    if (gs.eliminated[p]) return;
+    const pl = gs.planets[p];
+    const mainRes = PLANET_PRODUCE[p];
+    const mainAmt = PLANET_PRODUCE_AMT[p];
+    pl[mainRes] += mainAmt;
+
+    // Random non-main resource
+    const others = ['food','water','energy','metal'].filter(r=>r!==mainRes);
+    const randRes = randomFrom(others);
+    pl[randRes] += 1;
+
+    logParts.push(`${planetLabel(p)} 获得 +${mainAmt} ${RES_ICONS[mainRes]}${mainRes.toUpperCase()}, +1 ${RES_ICONS[randRes]}${randRes.toUpperCase()}`);
+  });
+  addLog(`【第${gs.round}轮产出】 ${logParts.join(' | ')}`, 'system');
+}
+
+/* =========================================================
+   PLAYER TURN MANAGEMENT
+   ========================================================= */
+function skipEliminated() {
+  while (gs.currentTurnIndex < gs.turnOrder.length && gs.eliminated[gs.turnOrder[gs.currentTurnIndex]]) {
+    gs.currentTurnIndex++;
+  }
+}
+
+function endPlayerTurn() {
+  const cp = currentPlanet();
+  addLog(`${planetLabel(cp)} 结束回合（剩余行动值：${gs.planets[cp].actionPoints}）`, 'system');
+  gs.currentTurnIndex++;
+  skipEliminated();
+
+  if (gs.currentTurnIndex >= gs.turnOrder.length) {
+    // All players done, settle round
+    settleRound();
+  } else {
+    render();
+    setStatus(`轮到 ${planetLabel(currentPlanet())} 行动！`);
+  }
+}
+
+/* =========================================================
+   TRADE
+   ========================================================= */
+function initiateTrade() {
+  const cp = currentPlanet();
+  const pl = gs.planets[cp];
+  if (pl.actionPoints < 1) { setStatus('行动值不足！'); return; }
+
+  const target = document.getElementById('trade-target').value;
+  const giveRes = document.getElementById('trade-give-res').value;
+  const giveAmt = parseInt(document.getElementById('trade-give-amt').value);
+  const wantRes = document.getElementById('trade-want-res').value;
+  const wantAmt = parseInt(document.getElementById('trade-want-amt').value);
+  const hidden = window._tradeType === 'hidden';
+
+  if (!target) { setStatus('请选择交易对象！'); return; }
+  if (target === cp) { setStatus('不能与自己交易！'); return; }
+  if (isNaN(giveAmt)||giveAmt<1) { setStatus('给出数量无效！'); return; }
+  if (isNaN(wantAmt)||wantAmt<1) { setStatus('换取数量无效！'); return; }
+  if (pl[giveRes] < giveAmt) { setStatus(`资源不足！你的 ${giveRes.toUpperCase()} 只有 ${pl[giveRes]}。`); return; }
+
+  // Deduct action point
+  pl.actionPoints--;
+
+  gs.pendingTrade = { from: cp, to: target, giveRes, giveAmt, wantRes, wantAmt, hidden };
+
+  // Show trade modal to target player
+  showTradeModal();
+  render();
+}
+
+function showTradeModal() {
+  const t = gs.pendingTrade;
+  const hidden = t.hidden;
+
+  const giveStr = hidden
+    ? `<span class="resource-tag rt-hidden">???</span> × ${t.giveAmt}`
+    : `${resTag(t.giveRes,false)} × ${t.giveAmt}`;
+  const wantStr = hidden
+    ? `<span class="resource-tag rt-hidden">???</span> × ${t.wantAmt}`
+    : `${resTag(t.wantRes,false)} × ${t.wantAmt}`;
+
+  const content = `
+    <h2>💹 交易请求</h2>
+    <div class="modal-body">
+      <p>🖥 请将屏幕交给 <b class="highlight">${planetLabel(t.to)}</b> 玩家查看</p>
+      <br>
+      <p>来自：<b style="color:${RES_COLORS[t.from]}">${planetLabel(t.from)}</b></p>
+      <p>模式：<b>${hidden?'🔒 暗牌交易':'🔓 明牌交易'}</b></p>
+      <br>
+      <p>对方愿意给出：${giveStr}</p>
+      <p>对方请求你给：${wantStr}</p>
+      <br>
+      <p style="color:var(--text-muted);font-size:11px;">请你（${planetLabel(t.to)}）选择是否同意这笔交易</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="respondTrade(true)">✓ 同意</button>
+      <button class="btn btn-danger" onclick="respondTrade(false)">✗ 拒绝</button>
+    </div>
+  `;
+  showModal(content);
+}
+
+function respondTrade(accept) {
+  closeModal();
+  const t = gs.pendingTrade;
+  gs.pendingTrade = null;
+
+  if (!accept) {
+    addLog(`${planetLabel(t.from)} 的交易被拒绝 → 交易失败`, 'trade');
+    setStatus(`${planetLabel(t.from)} 的交易被拒绝。`);
+    render();
+    return;
+  }
+
+  // Check target has enough
+  const targetPl = gs.planets[t.to];
+  const fromPl = gs.planets[t.from];
+  if (targetPl[t.wantRes] < t.wantAmt) {
+    addLog(`${planetLabel(t.from)} 与 ${planetLabel(t.to)} 交易失败（对方资源不足）`, 'trade');
+    setStatus(`交易失败：${planetLabel(t.to)} 没有足够的 ${t.wantRes.toUpperCase()}。`);
+    render();
+    return;
+  }
+
+  // Execute
+  fromPl[t.giveRes] -= t.giveAmt;
+  fromPl[t.wantRes] += t.wantAmt;
+  targetPl[t.giveRes] += t.giveAmt;
+  targetPl[t.wantRes] -= t.wantAmt;
+
+  // Public log: only say a trade completed, no details
+  addLog(`有一笔交易已完成`, 'trade');
+  // Private record for participants
+  addLog(`（内部）${planetLabel(t.from)} 与 ${planetLabel(t.to)} 完成交易：给出 ${t.giveAmt} ${t.giveRes} 换取 ${t.wantAmt} ${t.wantRes}`, 'trade');
+  setStatus(`交易成功！`);
+  render();
+}
+
+/* =========================================================
+   RAID
+   ========================================================= */
+function initiateRaid() {
+  const cp = currentPlanet();
+  const pl = gs.planets[cp];
+  if (pl.actionPoints < 1) { setStatus('行动值不足！'); return; }
+
+  const target = document.getElementById('raid-target').value;
+  const res = document.getElementById('raid-res').value;
+
+  if (!target) { setStatus('请选择掠夺目标！'); return; }
+  if (target === cp) { setStatus('不能掠夺自己！'); return; }
+
+  pl.actionPoints--;
+  gs.pendingRaid = { from: cp, to: target, res };
+
+  showRaidModal();
+  render();
+}
+
+function showRaidModal() {
+  const r = gs.pendingRaid;
+  const content = `
+    <h2>⚔️ 掠夺发生！</h2>
+    <div class="modal-body">
+      <p>🖥 请将屏幕交给 <b class="highlight">${planetLabel(r.to)}</b> 玩家查看</p>
+      <br>
+      <p><b style="color:${RES_COLORS[r.from]}">${planetLabel(r.from)}</b> 正在袭击你！</p>
+      <p>目标资源：${resTag(r.res,false)}</p>
+      <br>
+      <p style="color:var(--text-muted);font-size:11px;">请你（${planetLabel(r.to)}）选择：</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="respondRaid(false)">😤 不防守（放弃抵抗）</button>
+      <button class="btn btn-success" onclick="respondRaid(true)">🛡 防守（消耗敌方1人口）</button>
+    </div>
+  `;
+  showModal(content);
+}
+
+function respondRaid(defend) {
+  closeModal();
+  const r = gs.pendingRaid;
+  gs.pendingRaid = null;
+
+  const fromPl = gs.planets[r.from];
+  const toPl = gs.planets[r.to];
+
+  if (defend) {
+    fromPl.population = Math.max(0, fromPl.population - 1);
+    addLog(`⚔️ ${planetLabel(r.from)} 掠夺 ${planetLabel(r.to)} 的 ${r.res.toUpperCase()} — 被防守！攻击方人口-1 (→${fromPl.population})`, 'raid');
+    setStatus(`${planetLabel(r.to)} 成功防守！${planetLabel(r.from)} 人口-1。`);
+    checkEliminated(r.from);
+  } else {
+    if (toPl[r.res] < 1) {
+      addLog(`⚔️ ${planetLabel(r.from)} 掠夺 ${planetLabel(r.to)} 的 ${r.res.toUpperCase()} — 失败（目标资源不足）`, 'raid');
+      setStatus(`掠夺失败：${planetLabel(r.to)} 没有 ${r.res.toUpperCase()}！`);
+    } else {
+      toPl[r.res] -= 1;
+      fromPl[r.res] += 1;
+      addLog(`⚔️ ${planetLabel(r.from)} 掠夺 ${planetLabel(r.to)} 的 ${r.res.toUpperCase()} — 成功！夺走1个`, 'raid');
+
+      // Bonus dice
+      const bonusDice = roll6();
+      addLog(`🎲 掠夺成功骰：${bonusDice}`, 'dice');
+      if (bonusDice === 1) {
+        // Steal a random resource from target
+        const available = ['food','water','energy','metal'].filter(res=>toPl[res]>0);
+        if (available.length > 0) {
+          const extraRes = randomFrom(available);
+          toPl[extraRes] -= 1;
+          fromPl[extraRes] += 1;
+          addLog(`🎲 骰到1！额外夺走 ${planetLabel(r.to)} 的 1个 ${extraRes.toUpperCase()}`, 'raid');
+        } else {
+          addLog(`🎲 骰到1！但目标无资源可夺`, 'raid');
+        }
+      } else if (bonusDice === 6) {
+        toPl.population = Math.max(0, toPl.population - 1);
+        addLog(`🎲 骰到6！${planetLabel(r.to)} 额外失去1人口 (→${toPl.population})`, 'raid');
+        checkEliminated(r.to);
+      }
+      setStatus(`掠夺成功！骰子：${bonusDice}`);
+    }
+  }
+  render();
+}
+
+/* =========================================================
+   ROUND SETTLEMENT
+   ========================================================= */
+function settleRound() {
+  gs.phase = 'settling';
+  addLog(`━━━ 第${gs.round}轮结算开始 ━━━`, 'settle');
+
+  PLANETS.forEach(p => {
+    if (gs.eliminated[p]) return;
+    const pl = gs.planets[p];
+
+    let inLowConsume = pl.population < 2;
+    if (inLowConsume) {
+      pl.lowConsumeTurns = (pl.lowConsumeTurns || 0) + 1;
+      if (pl.lowConsumeTurns % 2 === 0) {
+        // Consume this turn
+        consumeResources(p, pl);
+      } else {
+        addLog(`${planetLabel(p)} 低耗模式（第${pl.lowConsumeTurns}低耗轮，本轮免扣）`, 'settle');
+      }
+    } else {
+      pl.lowConsumeTurns = 0;
+      consumeResources(p, pl);
+    }
+    checkEliminated(p);
+  });
+
+  // Check every 5 rounds
+  if (gs.round % 5 === 0) {
+    checkFiveRoundBonus();
+  } else {
+    finishSettlement();
+  }
+}
+
+function consumeResources(p, pl) {
+  const hasBoth = pl.food >= 1 && pl.water >= 1;
+  if (hasBoth) {
+    pl.food -= 1;
+    pl.water -= 1;
+    addLog(`${planetLabel(p)} 消耗 1 food + 1 water 维持人口`, 'settle');
+  } else {
+    const missing = [];
+    if (pl.food < 1) missing.push('food');
+    if (pl.water < 1) missing.push('water');
+    pl.population = Math.max(0, pl.population - 1);
+    addLog(`${planetLabel(p)} 缺少 ${missing.join('+')}！人口-1 (→${pl.population})`, 'settle');
+  }
+}
+
+function checkEliminated(p) {
+  if (gs.planets[p].population <= 0 && !gs.eliminated[p]) {
+    gs.eliminated[p] = true;
+    addLog(`💀 ${planetLabel(p)} 人口归零，已被淘汰！`, 'system');
+    // Remove from turn order active
+  }
+}
+
+/* =========================================================
+   FIVE-ROUND BONUS
+   ========================================================= */
+function checkFiveRoundBonus() {
+  gs.pendingBonus = [];
+  PLANETS.forEach(p => {
+    if (gs.eliminated[p]) return;
+    const pl = gs.planets[p];
+    if (pl.food >= 6) gs.pendingBonus.push({planet:p, type:'food_bonus'});
+    if (pl.water >= 5) gs.pendingBonus.push({planet:p, type:'water_bonus'});
+  });
+  gs.bonusIndex = 0;
+  addLog(`★ 第${gs.round}轮！触发五轮奖励检查`, 'bonus');
+  processNextBonus();
+}
+
+function processNextBonus() {
+  if (gs.bonusIndex >= gs.pendingBonus.length) {
+    finishSettlement();
+    return;
+  }
+  const bonus = gs.pendingBonus[gs.bonusIndex];
+  showBonusModal(bonus);
+}
+
+function showBonusModal(bonus) {
+  const p = bonus.planet;
+  const pl = gs.planets[p];
+  let content = '';
+
+  if (bonus.type === 'food_bonus') {
+    pl.population += 1;
+    addLog(`★ ${planetLabel(p)} food≥6 → 人口+1 (→${pl.population})`, 'bonus');
+    content = `
+      <h2>🌟 五轮奖励</h2>
+      <div class="modal-body">
+        <p>${planetLabel(p)} 的 food ≥ 6</p>
+        <p>获得奖励：<b style="color:var(--accent-green)">人口 +1 (→${pl.population})</b></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="nextBonus()">继续</button>
+      </div>
+    `;
+  } else if (bonus.type === 'water_bonus') {
+    content = `
+      <h2>🌟 五轮奖励</h2>
+      <div class="modal-body">
+        <p>🖥 请将屏幕交给 <b class="highlight">${planetLabel(p)}</b> 玩家</p>
+        <br>
+        <p>${planetLabel(p)} 的 water ≥ 5</p>
+        <p>请选择获得哪项奖励：</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-success" onclick="selectWaterBonus('${p}','food')">+1 🌾 FOOD</button>
+        <button class="btn btn-primary" onclick="selectWaterBonus('${p}','energy')">+1 ⚡ ENERGY</button>
+      </div>
+    `;
+  }
+  showModal(content);
+  render();
+}
+
+function selectWaterBonus(p, choice) {
+  gs.planets[p][choice] += 1;
+  addLog(`★ ${planetLabel(p)} water≥5 → 选择 +1 ${choice.toUpperCase()} (→${gs.planets[p][choice]})`, 'bonus');
+  closeModal();
+  nextBonus();
+}
+
+function nextBonus() {
+  closeModal();
+  gs.bonusIndex++;
+  processNextBonus();
+}
+
+function finishSettlement() {
+  addLog(`━━━ 第${gs.round}轮结算完毕 ━━━`, 'settle');
+  gs.phase = 'ready';
+  document.getElementById('btn-start-round').disabled = false;
+  render();
+  checkWinner();
+  if (gs.phase !== 'gameover') {
+    setStatus(`第 ${gs.round} 轮结算完毕！点击「开始新一轮」继续。`);
+  }
+}
+
+/* =========================================================
+   WINNER CHECK
+   ========================================================= */
+function checkWinner() {
+  const alive = getActivePlanets();
+  if (alive.length <= 1) {
+    gs.phase = 'gameover';
+    const banner = document.getElementById('winner-banner');
+    banner.style.display = 'block';
+    const txt = document.getElementById('winner-text');
+    if (alive.length === 1) {
+      txt.innerHTML = `${planetLabel(alive[0])} 是最终的胜者！ 共经历 ${gs.round} 轮。`;
+    } else {
+      txt.innerHTML = `所有星球同归于尽！游戏结束，经历 ${gs.round} 轮。`;
+    }
+    document.getElementById('btn-start-round').disabled = true;
+    addLog(`🏆 游戏结束！${alive.length===1?planetLabel(alive[0])+'胜利':'全灭'}`, 'system');
+  }
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+function confirmReset() {
+  const content = `
+    <h2>↺ 重置游戏</h2>
+    <div class="modal-body" style="text-align:center;">确定要重置游戏吗？所有进度将清除。</div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="resetGame()">确认重置</button>
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+    </div>
+  `;
+  showModal(content);
+}
+
+function resetGame() {
+  closeModal();
+  gs = initState();
+  window._tradeType = 'open';
+  document.getElementById('btn-roll').disabled = false;
+  document.getElementById('btn-start-round').disabled = true;
+  document.getElementById('log-list').innerHTML = '';
+  document.getElementById('winner-banner').style.display = 'none';
+  render();
+  setStatus('游戏已重置。请点击「开局掷骰」开始。');
+}
+
+/* =========================================================
+   MODAL HELPERS
+   ========================================================= */
+function showModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+
+/* =========================================================
+   RULES TOGGLE
+   ========================================================= */
+function toggleRules() {
+  const panel = document.getElementById('rules-panel');
+  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+/* =========================================================
+   INITIAL RENDER
+   ========================================================= */
+render();
+setStatus('请先点击「开局掷骰」决定行动顺序');
+addLog('游戏初始化完毕。等待开局掷骰…', 'system');
+</script>
+</body>
+</html>
